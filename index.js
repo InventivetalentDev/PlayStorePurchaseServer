@@ -50,7 +50,7 @@ oauth2Client.on('tokens', (tokens) => {
 });
 
 let playPublicKey;
-fs.readFile("licenseKey","utf8",(err,data)=>{
+fs.readFile("licenseKey", "utf8", (err, data) => {
     if (err) {
         console.warn(err);
         return;
@@ -131,7 +131,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 
     let verifier = crypto.createVerify("RSA-SHA1");
     verifier.update(req.body.purchase);
-    let verifyResult = verifier.verify(playPublicKey, signature,"base64");
+    let verifyResult = verifier.verify(playPublicKey, signature, "base64");
     console.log("Crypto Verify: " + verifyResult);
 
 
@@ -147,10 +147,13 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
     }
 
 
-
     let token = purchase.purchaseToken;
+    let wasAcknowledged = purchase.acknowledged;
 
-    request("https://www.googleapis.com/androidpublisher/v3/applications/org.inventivetalent.trashapp/purchases/" + type + "/" + id + "/tokens/" + token + "?access_token=" + googleAccessTokens.access_token, (err, response, body) => {
+    request({
+        url: "https://www.googleapis.com/androidpublisher/v3/applications/org.inventivetalent.trashapp/purchases/" + type + "/" + id + "/tokens/" + token + "?access_token=" + googleAccessTokens.access_token,
+        json: true
+    }, (err, getResponse, getBody) => {
         if (err) {
             console.warn(err);
             res.status(500).json({
@@ -159,19 +162,71 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             });
             return;
         }
-        console.log(body);
+        console.log(getBody);
 
-        if (response.statusCode !== 200) {
-            console.warn("non-ok status code from google api: " + response.statusCode);
+        if (getResponse.statusCode !== 200) {
+            console.warn("non-ok status code from google api: " + getResponse.statusCode);
             res.json({
                 success: true,
                 msg: "Failed to verify purchase",
                 isValidPurchase: false
             });
         } else {
-            res.json({
-                success: true
-            })
+            if (getBody.purchaseState !== 0) {
+                res.json({
+                    success: true,
+                    msg: "State is not PURCHASED",
+                    purchased: false,
+                    isValidPurchase: false
+                });
+                return;
+            }
+            if (getBody.acknowledgementState === 0 || getBody.consumptionState === 0) {
+                console.log("Acknowledging/Consuming purchase...");
+
+                request({
+                    url:"https://www.googleapis.com/androidpublisher/v3/applications/org.inventivetalent.trashapp/purchases/"+type+"/"+id+"/tokens/"+token+":acknowledge?access_token=" + googleAccessTokens.access_token,
+                    method:"POST",
+                    json:true
+                },(err,acknowledgeResponse,acknowledgeBody)=>{
+                    if (err) {
+                        console.warn(err);
+                        res.status(500).json({
+                            success: false,
+                            msg: "Google API error"
+                        });
+                        return;
+                    }
+                    console.log(acknowledgeBody);
+
+                    if (acknowledgeResponse.statusCode !== 200) {
+                        console.warn("non-ok status code from google api: " + acknowledgeResponse.statusCode);
+                        res.json({
+                            success: true,
+                            msg: "Failed to acknowledge purchase",
+                            isValidPurchase: false
+                        });
+                    } else {
+                        res.json({
+                            success: true,
+                            purchased: getBody.purchaseState === 0,
+                            wasAcknowledged: wasAcknowledged,
+                            acknowledgedOrConsumed: true,
+                            isValidPurchase: getBody.purchaseState === 0
+                        });
+                        ///DONE
+                    }
+                })
+            } else {// Already acknowledged/consumed
+                res.json({
+                    success: true,
+                    purchased: getBody.purchaseState === 0,
+                    wasAcknowledged: wasAcknowledged,
+                    acknowledgedOrConsumed: true,
+                    isValidPurchase: getBody.purchaseState === 0 && (getBody.acknowledgementState === 0 || getBody.consumptionState === 0)
+                });
+                ///DONE
+            }
         }
     });
 
