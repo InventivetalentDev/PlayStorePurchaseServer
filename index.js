@@ -10,6 +10,15 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 
+const PACKAGE = "org.inventivetalent.trashapp";
+
+const YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED = 0;
+const ACKNOWLEDGED_OR_CONSUMED = 1;
+
+const PURCHASED = 0;
+const CANCELED = 1;
+const PENDING = 2;
+
 
 const googleapis = require("googleapis");
 const google = googleapis.google;
@@ -46,7 +55,7 @@ oauth2Client.on('tokens', (tokens) => {
     }
     console.log("New Access Token:");
     console.log(tokens.access_token);
-    googleAccessTokens = token;
+    googleAccessTokens = tokens;
 });
 
 let playPublicKey;
@@ -57,7 +66,12 @@ fs.readFile("licenseKey", "utf8", (err, data) => {
     }
     playPublicKey = data;
     console.log("Read Play Public Key");
-})
+});
+
+const androidPublisher = google.androidpublisher({
+    version: "v3",
+    auth: oauth2Client
+});
 
 // let swStats = require('swagger-stats');
 // app.use(swStats.getMiddleware(vars.swagger));
@@ -83,7 +97,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 
     console.log("");
     console.log("[VERIFY] " + type + "/" + id);
-    type += "s";
+    // type += "s";
 
     console.log(req.body);
     console.log("");
@@ -150,6 +164,114 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
     let token = purchase.purchaseToken;
     let wasAcknowledged = purchase.acknowledged;
 
+    let getCallback = (getResponse) => {
+        console.log(JSON.stringify(getResponse));
+        let getBody = getResponse.data;
+
+        if (getBody.purchaseState !== 0) {
+            res.json({
+                success: true,
+                msg: "State is not PURCHASED",
+                purchased: false,
+                isValidPurchase: false
+            });
+            return;
+        }
+        if (getBody.acknowledgementState === YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED) {
+            console.log("Acknowledging/Consuming purchase...");
+
+            let acknowledgeCallback = (acknowledgeResponse) => {
+                console.log(JSON.stringify(acknowledgeResponse));
+                let acknowledgeBody = acknowledgeResponse.data;// should be empty if successful
+
+                res.json({
+                    success: true,
+                    purchased: getBody.purchaseState === PURCHASED,
+                    wasAcknowledged: wasAcknowledged,
+                    acknowledgedOrConsumed: true,
+                    isValidPurchase: getBody.purchaseState === PURCHASED
+                });
+                ///DONE
+            };
+
+            if ("product" === type) {
+                androidPublisher.purchases.products.acknowledge({
+                    packageName: PACKAGE,
+                    productId: id,
+                    token: token
+                }).then(acknowledgeCallback).catch(err => {
+                    console.warn(err);
+                    res.status(500).json({
+                        success: false,
+                        msg: "Google API error"
+                    });
+                });
+            } else if ("subscription" === type) {
+                androidPublisher.purchases.subscriptions.acknowledge({
+                    packageName: PACKAGE,
+                    subscriptionId: id,
+                    token: token
+                }).then(acknowledgeCallback).catch(err => {
+                    console.warn(err);
+                    res.status(500).json({
+                        success: false,
+                        msg: "Google API error"
+                    });
+                });
+            } else {
+                res.status(400).json({
+                    success: false,
+                    msg: "invalid type"
+                });
+                return;
+            }
+
+
+        } else {// Already acknowledged/consumed
+            res.json({
+                success: true,
+                purchased: getBody.purchaseState === PURCHASED,
+                wasAcknowledged: wasAcknowledged,
+                acknowledgedOrConsumed: true,
+                isValidPurchase: getBody.purchaseState === PURCHASED && (getBody.acknowledgementState === ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === ACKNOWLEDGED_OR_CONSUMED)
+            });
+            ///DONE
+        }
+
+    };
+
+    if ("product" === type) {
+        androidPublisher.purchases.products.get({
+            packageName: PACKAGE,
+            productId: id,
+            token: token
+        }).then(getCallback).catch(err => {
+            console.warn(err);
+            res.status(500).json({
+                success: false,
+                msg: "Google API error"
+            });
+        });
+    } else if ("subscription" === type) {
+        androidPublisher.purchases.subscriptions.get({
+            packageName: PACKAGE,
+            subscriptionId: id,
+            token: token
+        }).then(getCallback).catch(err => {
+            console.warn(err);
+            res.status(500).json({
+                success: false,
+                msg: "Google API error"
+            });
+        });
+    } else {
+        res.status(400).json({
+            success: false,
+            msg: "invalid type"
+        });
+        return;
+    }
+
     request({
         url: "https://www.googleapis.com/androidpublisher/v3/applications/org.inventivetalent.trashapp/purchases/" + type + "/" + id + "/tokens/" + token + "?access_token=" + googleAccessTokens.access_token,
         json: true
@@ -162,7 +284,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             });
             return;
         }
-        console.log(getBody);
+        console.log(JSON.stringify(getBody));
 
         if (getResponse.statusCode !== 200) {
             console.warn("non-ok status code from google api: " + getResponse.statusCode);
@@ -185,10 +307,10 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 console.log("Acknowledging/Consuming purchase...");
 
                 request({
-                    url:"https://www.googleapis.com/androidpublisher/v3/applications/org.inventivetalent.trashapp/purchases/"+type+"/"+id+"/tokens/"+token+":acknowledge?access_token=" + googleAccessTokens.access_token,
-                    method:"POST",
-                    json:true
-                },(err,acknowledgeResponse,acknowledgeBody)=>{
+                    url: "https://www.googleapis.com/androidpublisher/v3/applications/org.inventivetalent.trashapp/purchases/" + type + "/" + id + "/tokens/" + token + ":acknowledge?access_token=" + googleAccessTokens.access_token,
+                    method: "POST",
+                    json: true
+                }, (err, acknowledgeResponse, acknowledgeBody) => {
                     if (err) {
                         console.warn(err);
                         res.status(500).json({
@@ -197,7 +319,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                         });
                         return;
                     }
-                    console.log(acknowledgeBody);
+                    console.log(JSON.stringify(acknowledgeBody));
 
                     if (acknowledgeResponse.statusCode !== 200) {
                         console.warn("non-ok status code from google api: " + acknowledgeResponse.statusCode);
