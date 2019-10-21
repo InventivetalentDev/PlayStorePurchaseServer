@@ -122,7 +122,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
         return;
     }
 
-    if ("org.inventivetalent.trashapp" !== purchase.packageName) {
+    if (PACKAGE !== purchase.packageName) {
         console.warn("Not TrashApp!");
         res.status(400).json({
             success: false,
@@ -168,7 +168,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
         console.log(JSON.stringify(getResponse));
         let getBody = getResponse.data;
 
-        if (getBody.purchaseState !== 0) {
+        if (getBody.purchaseState !== PURCHASED) {
             res.json({
                 success: true,
                 msg: "State is not PURCHASED",
