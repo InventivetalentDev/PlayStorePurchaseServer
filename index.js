@@ -188,8 +188,9 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
     let wasAcknowledged = purchase.acknowledged;
 
     let getCallback = (getResponse) => {
-        console.log(JSON.stringify(getResponse));
+        // console.log(JSON.stringify(getResponse));
         let getBody = getResponse.data;
+        console.log(getBody);
         /*
          {
           "kind": "androidpublisher#productPurchase",
@@ -311,7 +312,6 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 console.log(JSON.stringify(acknowledgeResponse));
                 let acknowledgeBody = acknowledgeResponse.data;// should be empty if successful
                 if (!acknowledgeBody || acknowledgeBody.length === 0) {
-
                     console.log("Purchase Acknowledged");
 
                     res.json({
