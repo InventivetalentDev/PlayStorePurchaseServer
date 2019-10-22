@@ -72,7 +72,7 @@ oauth2Client.on('tokens', (tokens) => {
 });
 
 let playPublicKey;
-fs.readFile("licenseKey", "utf8", (err, data) => {
+fs.readFile("licenseKeyWithHeader", "utf8", (err, data) => {
     if (err) {
         console.warn(err);
         return;
