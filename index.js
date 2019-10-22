@@ -19,6 +19,10 @@ const PURCHASED = 0;
 const CANCELED = 1;
 const PENDING = 2;
 
+const TEST = 0;
+const PROMO = 1;
+const REWARDED = 2;
+
 
 const googleapis = require("googleapis");
 const google = googleapis.google;
@@ -109,6 +113,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             success: false,
             msg: "Invalid purchase"
         });
+        console.warn("Invalid Purchase");
         return;
     }
     purchase = JSON.parse(purchase);// parse string
@@ -119,6 +124,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             success: false,
             msg: "Invalid signature"
         });
+        console.warn("Invalid Signature");
         return;
     }
 
@@ -148,6 +154,14 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
     let verifyResult = verifier.verify(playPublicKey, signature, "base64");
     console.log("Crypto Verify: " + verifyResult);
 
+    if (!verifyResult) {
+        res.status(400).json({
+            success: false,
+            msg: "Could not verify signature"
+        });
+        console.warn("Could not verify signature");
+        return;
+    }
 
     //// API calls
 
@@ -167,6 +181,29 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
     let getCallback = (getResponse) => {
         console.log(JSON.stringify(getResponse));
         let getBody = getResponse.data;
+        /*
+         {
+          "kind": "androidpublisher#productPurchase",
+          "purchaseTimeMillis": long,
+          "purchaseState": integer,
+          "consumptionState": integer,
+          "developerPayload": string,
+          "orderId": string,
+          "purchaseType": integer,
+          "acknowledgementState": integer
+        }
+         */
+
+        if (getBody.orderId !== purchase.orderId) {
+            res.json({
+                success: false,
+                msg: "Order ID mismatch",
+                isValidPurchase: false
+            });
+            console.warn("Order ID mismatch");
+            return;
+        }
+        console.log("Order ID:  " + getBody.orderId);
 
         if (getBody.purchaseState !== PURCHASED) {
             res.json({
@@ -175,23 +212,54 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 purchased: false,
                 isValidPurchase: false
             });
+            console.warn("Not PURCHASED");
             return;
         }
+
+        let purchaseType = "REGULAR";
+        if (getBody.hasOwnProperty("purchaseType")) {
+            if (getBody.purchaseType === TEST) {
+                purchaseType = "TEST";
+            }
+            if (getBody.purchaseType === PROMO) {
+                purchaseType = "PROMO";
+            }
+            if (getBody.purchaseType === REWARDED) {
+                purchaseType = "REWARDED";
+            }
+        }
+        console.log("Purchase Type: " + purchaseType);
+
         if (getBody.acknowledgementState === YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED) {
             console.log("Acknowledging/Consuming purchase...");
 
             let acknowledgeCallback = (acknowledgeResponse) => {
                 console.log(JSON.stringify(acknowledgeResponse));
                 let acknowledgeBody = acknowledgeResponse.data;// should be empty if successful
+                if(!acknowledgeBody||acknowledgeBody.length===0) {
 
-                res.json({
-                    success: true,
-                    purchased: getBody.purchaseState === PURCHASED,
-                    wasAcknowledged: wasAcknowledged,
-                    acknowledgedOrConsumed: true,
-                    isValidPurchase: getBody.purchaseState === PURCHASED
-                });
-                ///DONE
+                    console.log("Purchase Acknowledged");
+
+                    res.json({
+                        success: true,
+                        purchased: getBody.purchaseState === PURCHASED,
+                        wasAcknowledged: wasAcknowledged,
+                        acknowledgedOrConsumed: true,
+                        isValidPurchase: getBody.purchaseState === PURCHASED
+                    });
+                    ///DONE
+                    console.log("[VERIFY] DONE!");
+                    console.log("");
+                    return;
+                }else{
+                    console.warn("AcknowledgeBody was not empty");
+                    console.warn(acknowledgeBody);
+                    res.status(400).json({
+                        success: false,
+                        msg: "Could not acknowledge purchase"
+                    });
+                    return;
+                }
             };
 
             if ("product" === type) {
@@ -227,6 +295,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             }
 
         } else {// Already acknowledged/consumed
+            console.log("Already acknowledged");
             res.json({
                 success: true,
                 purchased: getBody.purchaseState === PURCHASED,
@@ -235,9 +304,30 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 isValidPurchase: getBody.purchaseState === PURCHASED && (getBody.acknowledgementState === ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === ACKNOWLEDGED_OR_CONSUMED)
             });
             ///DONE
+            console.log("[VERIFY] DONE!");
+            console.log("");
+            return;
         }
 
     };
+
+    /*
+    {
+        purchase: string,
+        signature: string
+    }
+
+   {
+       "orderId":"GPA.3307-7413-6870-76472",
+       "packageName":"org.inventivetalent.trashapp",
+       "productId":"premium",
+       "purchaseTime":1559207727270,
+       "purchaseState":0,
+       "purchaseToken":"inoooflaglepchekkmgcggmo.AO-J1OxEXU6pHwirzIdMDjo5XXx-GTIF9MhkmasBDfLVg24jNLTkXI10HKcMWxkT9iL1PAIL4JMtElQ142lqWbfi1j0R--iwOVfo-M-E5Nzh9uDdDpzXQVFweL9ZypTkaIv9-8orCpfC",
+       "acknowledged":false
+   }
+
+     */
 
     if ("product" === type) {
         androidPublisher.purchases.products.get({
