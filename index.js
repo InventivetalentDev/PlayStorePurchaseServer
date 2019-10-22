@@ -268,7 +268,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 console.warn("Not PURCHASED");
                 return;
             }
-            console.log("Purchase Time: " + new Date(getBody.purchaseTimeMillis))
+            console.log("Purchase Time: " + new Date(parseInt(getBody.purchaseTimeMillis)))
         } else if (getBody.kind === SUBSCRIPTION_PURCHASE && type === "subscription") {
             if (getBody.paymentState !== PAYMENT_RECEIVED) {
                 res.status(400).json({
@@ -280,7 +280,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 console.warn("Not PAYMENT_RECEIVED");
                 return;
             }
-            console.log("Start Time: " + new Date(getBody.startTimeMillis))
+            console.log("Start Time: " + new Date(parseInt(getBody.startTimeMillis)))
         } else {
             res.status(400).json({
                 success: false,
@@ -305,7 +305,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
         }
         console.log("Purchase Type: " + purchaseType);
 
-        if (getBody.acknowledgementState === YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED) {
+        if (getBody.acknowledgementState !== ACKNOWLEDGED_OR_CONSUMED && getBody.consumptionState !== ACKNOWLEDGED_OR_CONSUMED) {
             console.log("Acknowledging/Consuming purchase...");
 
             let acknowledgeCallback = (acknowledgeResponse) => {
@@ -316,10 +316,11 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 
                     res.json({
                         success: true,
-                        purchased: getBody.purchaseState === PURCHASED,
+                        purchased: getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED,
                         wasAcknowledged: wasAcknowledged,
                         acknowledgedOrConsumed: true,
-                        isValidPurchase: getBody.purchaseState === PURCHASED
+                        isValidPurchase: getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED,
+                        sku: id
                     });
                     ///DONE
                     console.log("[VERIFY] DONE!");
@@ -372,10 +373,11 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             console.log("Already acknowledged");
             res.json({
                 success: true,
-                purchased: getBody.purchaseState === PURCHASED,
+                purchased: getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED,
                 wasAcknowledged: wasAcknowledged,
                 acknowledgedOrConsumed: true,
-                isValidPurchase: getBody.purchaseState === PURCHASED && (getBody.acknowledgementState === ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === ACKNOWLEDGED_OR_CONSUMED)
+                isValidPurchase: (getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED) && (getBody.acknowledgementState === ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === ACKNOWLEDGED_OR_CONSUMED),
+                sku: id
             });
             ///DONE
             console.log("[VERIFY] DONE!");
