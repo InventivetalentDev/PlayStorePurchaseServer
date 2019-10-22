@@ -12,12 +12,21 @@ app.use(bodyParser.json());
 
 const PACKAGE = "org.inventivetalent.trashapp";
 
+const PRODUCT_PURCHASE = "androidpublisher#productPurchase";
+const SUBSCRIPTION_PURCHASE = "androidpublisher#subscriptionPurchase";
+
 const YET_TO_BE_ACKNOWLEDGED_OR_CONSUMED = 0;
 const ACKNOWLEDGED_OR_CONSUMED = 1;
 
 const PURCHASED = 0;
 const CANCELED = 1;
 const PENDING = 2;
+
+// https://developers.google.com/android-publisher/api-ref/purchases/subscriptions#paymentState
+const PAYMENT_PENDING = 0;
+const PAYMENT_RECEIVED = 1;
+const FREE_TRIAL = 2;
+const PENDING_DEFERRED = 3;
 
 const TEST = 0;
 const PROMO = 1;
@@ -192,6 +201,48 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
           "purchaseType": integer,
           "acknowledgementState": integer
         }
+
+
+        {
+          "kind": "androidpublisher#subscriptionPurchase",
+          "startTimeMillis": long,
+          "expiryTimeMillis": long,
+          "autoResumeTimeMillis": long,
+          "autoRenewing": boolean,
+          "priceCurrencyCode": string,
+          "priceAmountMicros": long,
+          "introductoryPriceInfo": {
+            "introductoryPriceCurrencyCode": string,
+            "introductoryPriceAmountMicros": long,
+            "introductoryPricePeriod": string,
+            "introductoryPriceCycles": integer
+          },
+          "countryCode": string,
+          "developerPayload": string,
+          "paymentState": integer,
+          "cancelReason": integer,
+          "userCancellationTimeMillis": long,
+          "cancelSurveyResult": {
+            "cancelSurveyReason": integer,
+            "userInputCancelReason": string
+          },
+          "orderId": string,
+          "linkedPurchaseToken": string,
+          "purchaseType": integer,
+          "priceChange": {
+            "newPrice": {
+              "priceMicros": string,
+              "currency": string
+            },
+            "state": integer
+          },
+          "profileName": string,
+          "emailAddress": string,
+          "givenName": string,
+          "familyName": string,
+          "profileId": string,
+          "acknowledgementState": integer
+        }
          */
 
         if (getBody.orderId !== purchase.orderId) {
@@ -205,7 +256,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
         }
         console.log("Order ID:  " + getBody.orderId);
 
-        if (getBody.purchaseState !== PURCHASED) {
+        if ((getBody.kind === PRODUCT_PURCHASE || type === "product") && getBody.purchaseState !== PURCHASED) {
             res.json({
                 success: true,
                 msg: "State is not PURCHASED",
@@ -213,6 +264,16 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 isValidPurchase: false
             });
             console.warn("Not PURCHASED");
+            return;
+        }
+        if ((getBody.kind === SUBSCRIPTION_PURCHASE || type === "subscription") && getBody.paymentState !== PAYMENT_RECEIVED) {
+            res.json({
+                success: true,
+                msg: "State is not PAYMENT_RECEIVED",
+                purchased: false,
+                isValidPurchase: false
+            });
+            console.warn("Not PAYMENT_RECEIVED");
             return;
         }
 
