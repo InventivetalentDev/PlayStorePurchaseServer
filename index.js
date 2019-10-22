@@ -267,7 +267,8 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 console.warn("Not PURCHASED");
                 return;
             }
-        }else if (getBody.kind === SUBSCRIPTION_PURCHASE && type === "subscription") {
+            console.log("Purchase Time: " + new Date(getBody.purchaseTimeMillis))
+        } else if (getBody.kind === SUBSCRIPTION_PURCHASE && type === "subscription") {
             if (getBody.paymentState !== PAYMENT_RECEIVED) {
                 res.status(400).json({
                     success: true,
@@ -278,7 +279,8 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 console.warn("Not PAYMENT_RECEIVED");
                 return;
             }
-        }else{
+            console.log("Start Time: " + new Date(getBody.startTimeMillis))
+        } else {
             res.status(400).json({
                 success: false,
                 msg: "Invalid type",
@@ -308,7 +310,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             let acknowledgeCallback = (acknowledgeResponse) => {
                 console.log(JSON.stringify(acknowledgeResponse));
                 let acknowledgeBody = acknowledgeResponse.data;// should be empty if successful
-                if(!acknowledgeBody||acknowledgeBody.length===0) {
+                if (!acknowledgeBody || acknowledgeBody.length === 0) {
 
                     console.log("Purchase Acknowledged");
 
@@ -323,7 +325,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                     console.log("[VERIFY] DONE!");
                     console.log("");
                     return;
-                }else{
+                } else {
                     console.warn("AcknowledgeBody was not empty");
                     console.warn(acknowledgeBody);
                     res.status(400).json({
