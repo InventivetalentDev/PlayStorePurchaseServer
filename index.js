@@ -258,7 +258,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 
         if (getBody.kind === PRODUCT_PURCHASE && type === "product") {
             if (getBody.purchaseState !== PURCHASED) {
-                res.json({
+                res.status(400).json({
                     success: true,
                     msg: "State is not PURCHASED",
                     purchased: false,
@@ -269,7 +269,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             }
         }else if (getBody.kind === SUBSCRIPTION_PURCHASE && type === "subscription") {
             if (getBody.paymentState !== PAYMENT_RECEIVED) {
-                res.json({
+                res.status(400).json({
                     success: true,
                     msg: "State is not PAYMENT_RECEIVED",
                     purchased: false,
@@ -278,6 +278,14 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 console.warn("Not PAYMENT_RECEIVED");
                 return;
             }
+        }else{
+            res.status(400).json({
+                success: false,
+                msg: "Invalid type",
+                purchased: false,
+                isValidPurchase: false
+            });
+            return;
         }
 
         let purchaseType = "REGULAR";
