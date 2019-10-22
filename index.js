@@ -281,6 +281,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 return;
             }
             console.log("Start Time: " + new Date(parseInt(getBody.startTimeMillis)))
+            console.log("Expiry Time: " + new Date(parseInt(getBody.expiryTimeMillis)))
         } else {
             res.status(400).json({
                 success: false,
@@ -320,6 +321,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                         wasAcknowledged: wasAcknowledged,
                         acknowledgedOrConsumed: true,
                         isValidPurchase: getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED,
+                        expired: false,
                         sku: id
                     });
                     ///DONE
@@ -377,6 +379,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 wasAcknowledged: wasAcknowledged,
                 acknowledgedOrConsumed: true,
                 isValidPurchase: (getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED) && (getBody.acknowledgementState === ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === ACKNOWLEDGED_OR_CONSUMED),
+                expired: false,
                 sku: id
             });
             ///DONE

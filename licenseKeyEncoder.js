@@ -11,6 +11,9 @@ fs.readFile("licenseKey", "utf8", (err, data) => {
             return;
         }
 
+        console.log("Key Array:");
+        console.log(JSON.stringify(stringToArray(keyData)));
+
         let bytes = Buffer.from(data, 'base64');
         console.log(bytes.length + " bytes in raw google play key");
 
@@ -25,7 +28,6 @@ fs.readFile("licenseKey", "utf8", (err, data) => {
         });
 
         let decrypted = decrypt(encrypted, keyData);
-        let decryptedBase64 = Buffer.from(decrypted).toString("base64");
         let same = decrypted === data;
         console.log("can decrypt: " + same);
 
@@ -35,10 +37,12 @@ fs.readFile("licenseKey", "utf8", (err, data) => {
 
 
 function encryptionTest() {
-    let input = "This is a random string to test stuff";
+    let input = "Keyboard Kitten";
     let key = "I am a key!";
 
     console.log("input: " + input);
+
+    console.log(JSON.stringify(stringToArray(key)));
 
     let encrypted = encrypt(input, key);
     console.log("encrypted: " + encrypted);
@@ -51,7 +55,7 @@ function encryptionTest() {
     console.log("input == decrypted: " + same);
 }
 
-// encryptionTest();
+encryptionTest();
 
 function crypt(input, key) {
     let output = [];
@@ -76,4 +80,13 @@ function decrypt(input, key) {
     return Buffer.from(output).toString("ascii");
 }
 
+function stringToArray(input) {
+    let output = [];
+
+    for (let i = 0; i < input.length; i++) {
+        let charCode = input.charCodeAt(i) ;
+        output.push(charCode);
+    }
+    return output;
+}
 

@@ -6,3 +6,5 @@ vars.js
 googleTokens.json
 licenseKey
 licenseKey.bin
+licenseKeyWithHeader
+encryptionKey
