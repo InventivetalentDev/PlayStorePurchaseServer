@@ -256,25 +256,28 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
         }
         console.log("Order ID:  " + getBody.orderId);
 
-        if ((getBody.kind === PRODUCT_PURCHASE || type === "product") && getBody.purchaseState !== PURCHASED) {
-            res.json({
-                success: true,
-                msg: "State is not PURCHASED",
-                purchased: false,
-                isValidPurchase: false
-            });
-            console.warn("Not PURCHASED");
-            return;
-        }
-        if ((getBody.kind === SUBSCRIPTION_PURCHASE || type === "subscription") && getBody.paymentState !== PAYMENT_RECEIVED) {
-            res.json({
-                success: true,
-                msg: "State is not PAYMENT_RECEIVED",
-                purchased: false,
-                isValidPurchase: false
-            });
-            console.warn("Not PAYMENT_RECEIVED");
-            return;
+        if (getBody.kind === PRODUCT_PURCHASE && type === "product") {
+            if (getBody.purchaseState !== PURCHASED) {
+                res.json({
+                    success: true,
+                    msg: "State is not PURCHASED",
+                    purchased: false,
+                    isValidPurchase: false
+                });
+                console.warn("Not PURCHASED");
+                return;
+            }
+        }else if (getBody.kind === SUBSCRIPTION_PURCHASE && type === "subscription") {
+            if (getBody.paymentState !== PAYMENT_RECEIVED) {
+                res.json({
+                    success: true,
+                    msg: "State is not PAYMENT_RECEIVED",
+                    purchased: false,
+                    isValidPurchase: false
+                });
+                console.warn("Not PAYMENT_RECEIVED");
+                return;
+            }
         }
 
         let purchaseType = "REGULAR";
@@ -384,7 +387,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
        "productId":"premium",
        "purchaseTime":1559207727270,
        "purchaseState":0,
-       "purchaseToken":"inoooflaglepchekkmgcggmo.AO-J1OxEXU6pHwirzIdMDjo5XXx-GTIF9MhkmasBDfLVg24jNLTkXI10HKcMWxkT9iL1PAIL4JMtElQ142lqWbfi1j0R--iwOVfo-M-E5Nzh9uDdDpzXQVFweL9ZypTkaIv9-8orCpfC",
+       "purchaseToken":"inoooflaglepchekkmgcggmo.AO-.....ypTkaIv9-8orCpfC",
        "acknowledged":false
    }
 
