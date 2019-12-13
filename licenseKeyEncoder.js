@@ -1,5 +1,15 @@
 const fs = require("fs");
 
+
+// Takes a 'licenseKey' file containing the google play public key and
+// XOR encrypts it using the content of 'encryptionKey'
+
+// Outputs the following files:
+//      licenseKey.bin          Provided public key as bytes
+//      licenseKeyEncrypted     XOR Encrypted public key as base64
+//      licenseKeyEncrypted.bin XOR Encrypted public key as bytes
+// Also prints a JSON array of bytes to decrypt the key on the client again
+
 fs.readFile("licenseKey", "utf8", (err, data) => {
     if (err) {
         console.warn(err);

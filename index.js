@@ -10,8 +10,6 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 
-const PACKAGE = "org.inventivetalent.trashapp";
-
 const PRODUCT_PURCHASE = "androidpublisher#productPurchase";
 const SUBSCRIPTION_PURCHASE = "androidpublisher#subscriptionPurchase";
 
@@ -43,7 +41,7 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 let googleAccessTokens;
-
+// File to store tokens received by the google api, can be missing at first
 fs.readFile("googleTokens.json", "utf8", (err, data) => {
     if (err) {
         console.warn(err);
@@ -61,7 +59,6 @@ fs.readFile("googleTokens.json", "utf8", (err, data) => {
 
 oauth2Client.on('tokens', (tokens) => {
     if (tokens.refresh_token) {
-        // store the refresh_token in my database!
         console.log(tokens.refresh_token);
         fs.writeFile("googleTokens.json", JSON.stringify(tokens), "utf8", () => {
         })
@@ -72,6 +69,7 @@ oauth2Client.on('tokens', (tokens) => {
 });
 
 let playPublicKey;
+// Basically just the google play key with extra key header and footer
 fs.readFile("licenseKeyWithHeader", "utf8", (err, data) => {
     if (err) {
         console.warn(err);
@@ -86,16 +84,12 @@ const androidPublisher = google.androidpublisher({
     auth: oauth2Client
 });
 
-// let swStats = require('swagger-stats');
-// app.use(swStats.getMiddleware(vars.swagger));
 
 const port = 8789;
-
 
 app.get('/', (req, res) => {
     res.send("Hello World");
 });
-
 
 app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
     let type = req.params.type;
@@ -137,8 +131,8 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
         return;
     }
 
-    if (PACKAGE !== purchase.packageName) {
-        console.warn("Not TrashApp!");
+    if (vars.appPackage !== purchase.packageName) {
+        console.warn("Requested package is not " + vars.appPackage + " (was " + purchase.packageName + ")");
         res.status(400).json({
             success: false,
             msg: "Invalid package"
@@ -317,10 +311,10 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 
                     res.json({
                         success: true,
-                        purchased: getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED,
+                        purchased: getBody.purchaseState === PURCHASED || getBody.paymentState === PAYMENT_RECEIVED,
                         wasAcknowledged: wasAcknowledged,
                         acknowledgedOrConsumed: true,
-                        isValidPurchase: getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED,
+                        isValidPurchase: getBody.purchaseState === PURCHASED || getBody.paymentState === PAYMENT_RECEIVED,
                         expired: false,
                         sku: id
                     });
@@ -341,7 +335,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 
             if ("product" === type) {
                 androidPublisher.purchases.products.acknowledge({
-                    packageName: PACKAGE,
+                    packageName: vars.appPackage,
                     productId: id,
                     token: token
                 }).then(acknowledgeCallback).catch(err => {
@@ -353,7 +347,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
                 });
             } else if ("subscription" === type) {
                 androidPublisher.purchases.subscriptions.acknowledge({
-                    packageName: PACKAGE,
+                    packageName: vars.appPackage,
                     subscriptionId: id,
                     token: token
                 }).then(acknowledgeCallback).catch(err => {
@@ -375,10 +369,10 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
             console.log("Already acknowledged");
             res.json({
                 success: true,
-                purchased: getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED,
+                purchased: getBody.purchaseState === PURCHASED || getBody.paymentState === PAYMENT_RECEIVED,
                 wasAcknowledged: wasAcknowledged,
                 acknowledgedOrConsumed: true,
-                isValidPurchase: (getBody.purchaseState === PURCHASED||getBody.paymentState===PAYMENT_RECEIVED) && (getBody.acknowledgementState === ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === ACKNOWLEDGED_OR_CONSUMED),
+                isValidPurchase: (getBody.purchaseState === PURCHASED || getBody.paymentState === PAYMENT_RECEIVED) && (getBody.acknowledgementState === ACKNOWLEDGED_OR_CONSUMED || getBody.consumptionState === ACKNOWLEDGED_OR_CONSUMED),
                 expired: false,
                 sku: id
             });
@@ -402,7 +396,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
        "productId":"premium",
        "purchaseTime":1559207727270,
        "purchaseState":0,
-       "purchaseToken":"inoooflaglepchekkmgcggmo.AO-.....ypTkaIv9-8orCpfC",
+       "purchaseToken":"inoooflaglepchek..........ypTkaIv9-8orCpfC",
        "acknowledged":false
    }
 
@@ -410,7 +404,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 
     if ("product" === type) {
         androidPublisher.purchases.products.get({
-            packageName: PACKAGE,
+            packageName: vars.appPackage,
             productId: id,
             token: token
         }).then(getCallback).catch(err => {
@@ -422,7 +416,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
         });
     } else if ("subscription" === type) {
         androidPublisher.purchases.subscriptions.get({
-            packageName: PACKAGE,
+            packageName: vars.appPackage,
             subscriptionId: id,
             token: token
         }).then(getCallback).catch(err => {
@@ -443,7 +437,7 @@ app.post("/verifyInAppPurchase/:type/:sub", (req, res) => {
 });
 
 
-app.listen(port, () => console.log(`TrashAppPurchases listening on port ${ port }!`));
+app.listen(port, () => console.log(`Purchase Server  listening on port ${ port }!`));
 
 process.on('uncaughtException', function (err) {
     console.log('Caught exception: ');
