@@ -3,8 +3,6 @@ const vars = require("./vars");
 const fs = require("fs");
 const crypto = require("crypto");
 
-const request = require("request");
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
